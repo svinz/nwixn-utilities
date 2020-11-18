@@ -1,0 +1,185 @@
+---
+elasticsearchHosts: "https://elasticsearch-master:9200"
+
+replicas: 1
+
+
+# Extra environment variables to append to this nodeGroup
+# This will be appended to the current 'env:' key. You can use any of the kubernetes env
+# syntax here
+extraEnvs:
+  - name: "NODE_OPTIONS"
+    value: "--max-old-space-size=1800"
+  - name: 'ELASTICSEARCH_USERNAME'
+    valueFrom:
+      secretKeyRef:
+        name: elastic-credentials
+        key: username
+  - name: 'ELASTICSEARCH_PASSWORD'
+    valueFrom:
+      secretKeyRef:
+        name: elastic-credentials
+        key: password
+  # - name: SERVER_BASEPATH
+  #   value: /kibana
+  # - name: 'KIBANA_ENCRYPTION_KEY'
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: kibana
+  #       key: encryptionkey
+#  - name: MY_ENVIRONMENT_VAR
+#    value: the_value_goes_here
+
+# Allows you to load environment variables from kubernetes secret or config map
+envFrom: []
+# - secretRef:
+#     name: env-secret
+# - configMapRef:
+#     name: config-map
+
+# Allows you to add any config files in /usr/share/kibana/config/
+# such as kibana.yml
+kibanaConfig: 
+  kibana.yml: |
+    server.ssl:
+      enabled: true
+      key: /usr/share/kibana/config/certs/elastic-certificate.pem
+      certificate: /usr/share/kibana/config/certs/elastic-certificate.pem
+    elasticsearch.ssl:
+      certificateAuthorities: /usr/share/kibana/config/certs/elastic-certificate.pem
+      verificationMode: certificate
+#    xpack.security.encryptionKey: ${KIBANA_ENCRYPTION_KEY}
+#Security settings have been doen by following this example
+#https://github.com/elastic/helm-charts/tree/7.8.0/kibana/examples/security
+
+# A list of secrets and their paths to mount inside the pod
+# This is useful for mounting certificates for security and for mounting
+# the X-Pack license
+secretMounts:
+  - name: elastic-certificate-pem
+    secretName: elastic-certificate-pem
+    path: /usr/share/kibana/config/certs
+#  - name: kibana-keystore
+#    secretName: kibana-keystore
+#    path: /usr/share/kibana/data/kibana.keystore
+#    subPath: kibana.keystore # optional
+
+image: "docker.elastic.co/kibana/kibana"
+imageTag: "7.8.0"
+imagePullPolicy: "IfNotPresent"
+
+# additionals labels
+labels: {}
+
+podAnnotations: {}
+  # iam.amazonaws.com/role: es-cluster
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
+    cpu: "1000m"
+    memory: "2Gi"
+
+protocol: https
+
+serverHost: "0.0.0.0"
+
+healthCheckPath: "/app/kibana"
+
+
+
+# If Pod Security Policy in use it may be required to specify security context as well as service account
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  # readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+serviceAccount: ""
+
+# This is the PriorityClass settings as defined in
+# https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/#priorityclass
+priorityClassName: ""
+
+httpPort: 5601
+
+extraContainers: ""
+# - name: dummy-init
+#   image: busybox
+#   command: ['echo', 'hey']
+
+extraInitContainers: ""
+# - name: dummy-init
+#   image: busybox
+#   command: ['echo', 'hey']
+
+updateStrategy:
+  type: "Recreate"
+
+service:
+  type: NodePort
+  port: 80
+  nodePort: ""
+  labels: {}
+  annotations: {}
+    # cloud.google.com/load-balancer-type: "Internal"
+    # service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
+    # service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    # service.beta.kubernetes.io/openstack-internal-load-balancer: "true"
+    # service.beta.kubernetes.io/cce-load-balancer-internal-vpc: "true"
+  loadBalancerSourceRanges: []
+    # 0.0.0.0/0
+
+#used this guide to setup ingress to kibana; https://github.com/elastic/cloud-on-k8s/issues/1010
+ingress:
+  apiVersion: networking.k8s.io/v1beta1
+  enabled: true
+  annotations: 
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    certmanager.k8s.io/issuer: "letsencrypt-prod"
+    certmanager.k8s.io/acme-challenge-type: http01
+    #nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    # kubernetes.io/tls-acme: "true"
+  path: /
+  hosts:
+    - its.project.li
+  tls: 
+    - secretName: its-project-li-tls
+      hosts:
+        - its.project.li
+
+readinessProbe:
+  failureThreshold: 3
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  successThreshold: 3
+  timeoutSeconds: 5
+
+imagePullSecrets: []
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+nameOverride: ""
+fullnameOverride: ""
+
+lifecycle: {}
+  # preStop:
+  #   exec:
+  #     command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
+  # postStart:
+  #   exec:
+  #     command: ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]
+
+# Deprecated - use only with versions < 6.6
+elasticsearchURL: "" # "http://elasticsearch-master:9200"

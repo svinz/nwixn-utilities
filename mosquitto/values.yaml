@@ -1,0 +1,115 @@
+# Default values for mosquitto.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: eclipse-mosquitto
+  tag: "{{ .Chart.AppVersion }}"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+config: |-
+  persistence true
+  persistence_location /mosquitto/data/
+  log_dest stdout
+  log_type error
+  log_type warning
+  log_type notice
+  log_type information
+  listener 1883
+
+  # MQTT over TLS/SSL
+  listener 8883 0.0.0.0
+  protocol mqtt
+  cafile /mosquitto/config/certs/ca.crt
+  certfile /mosquitto/config/certs/server.crt
+  keyfile /mosquitto/config/certs/server.key
+  require_certificate true
+  use_subject_as_username true
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name:
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 1883
+
+ingress:
+  apiVersion: networking.k8s.io/v1beta1
+  enabled: false
+  annotations: 
+    kubernetes.io/ingress.class: nginx
+    #cert-manager.io/cluster-issuer: letsencrypt-prod
+    #nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    #certmanager.k8s.io/issuer: "letsencrypt-prod"
+    #certmanager.k8s.io/acme-challenge-type: http01
+    #nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    # kubernetes.io/tls-acme: "true"
+  path: /mqtt/
+  hosts:
+    - its.project.li
+#  tls: 
+#    - secretName: its-project-li-tls
+#      hosts:
+#        - its.project.li
+
+secretMounts:
+  - name: mosquitto-certificates
+    secretName: mosquitto-certificates
+    path: /mosquitto/config/certs/
+
+## Persist data to a persistent volume
+persistence:
+  enabled: true
+  ## database data Persistent Volume Storage Class
+  ## If defined, storageClassName: <storageClass>
+  ## If set to "-", storageClassName: "", which disables dynamic provisioning
+  ## If undefined (the default) or set to null, no storageClassName spec is
+  ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+  ##   GKE, AWS & OpenStack)
+  ##
+  # storageClass: "-"
+  accessMode: ReadWriteOnce
+  size: 8Gi
+  annotations: {}
+  storageClass: standard
+
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

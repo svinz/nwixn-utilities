@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: its-project-li
+  namespace: default
+spec:
+  secretName: its-project-li-tls
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+  commonName: its.project.li
+  dnsNames:
+  - its.project.li
